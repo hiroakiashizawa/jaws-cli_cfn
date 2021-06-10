@@ -1,0 +1,189 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Build For ¥"
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "Project Name Prefix"
+        Parameters:
+          - PJPrefix
+
+Parameters:
+  PJPrefix:
+    Description: Input PJ Prefix.
+    Type: String
+    Default: "handson-cloud9"
+
+Resources:
+  IAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      Groups:
+        - !Ref IAMGroup
+      Path: !Sub "/${PJPrefix}/"
+      # PermissionsBoundary: String
+      Tags:
+        - Key: "Name"
+          Value: "tag"
+      UserName: !Sub "${PJPrefix}-user"
+
+
+  ## IAM Group作成
+  IAMGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: !Sub "${PJPrefix}-group"
+      Path: !Sub "/${PJPrefix}/"
+      ManagedPolicyArns:
+        - !Ref IAMPolicy
+        - "arn:aws:iam::aws:policy/ReadOnlyAccess"
+        - "arn:aws:iam::aws:policy/AWSCloudShellFullAccess"
+
+  ## IAM Policy作成
+  IAMPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: !Sub "${PJPrefix}EnvironmentOwner-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        ## Policy Documentの内容は下記
+        Statement: [
+        {
+          "Effect": "Allow",
+          "Action": [
+              "cloud9:ValidateEnvironmentName",
+              "cloud9:GetUserPublicKey",
+              "iam:GetUser",
+              "iam:ListUsers",
+              "ec2:DescribeIamInstanceProfileAssociations",
+              "ec2:DescribeInstances",
+              "ec2:DescribeInstanceStatus",
+              "ec2:DescribeSubnets",
+              "ec2:DescribeVolumes",
+              "ec2:DescribeVpcs"
+          ],
+          "Resource": "*"
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "cloud9:CreateEnvironmentEC2",
+            "cloud9:DeleteEnvironment"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "StringLike": {
+              "cloud9:EnvironmentName": "handson-*",
+              "cloud9:InstanceType": [
+                  "t2.*",
+                  "t3.*",
+                  "t3a.*",
+                  "t4g.*"
+                ]
+            }
+          }
+        },
+        {
+          "Effect": "Allow",
+          "Action": "cloud9:DescribeEnvironmentMemberships",
+          "Resource": "*",
+          "Condition": {
+            "Null": {
+              "cloud9:UserArn": "true",
+              "cloud9:EnvironmentId": "true"
+            }
+          }
+        },
+        {
+          "Effect": "Allow",
+          "Action": "iam:CreateServiceLinkedRole",
+          "Resource": "*",
+          "Condition": {
+            "StringLike": {
+              "iam:AWSServiceName": "cloud9.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "ec2:DisassociateIamInstanceProfile",
+            "ec2:AssociateIamInstanceProfile"
+          ],
+          "Resource": "arn:aws:ec2:*:*:instance/*",
+          "Condition": {
+            "StringLike": {
+              "ec2:ResourceTag/Name": "aws-cloud9-handson-*"
+            }
+          }
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "ec2:RebootInstances",
+            "ec2:StopInstances",
+            "ec2:StartInstances",
+            "ec2:TerminateInstances"
+          ],
+          "Resource": "arn:aws:ec2:*:*:instance/*",
+          "Condition": {
+            "StringLike": {
+              "ec2:ResourceTag/Name": "aws-cloud9-handson-*"
+            }
+          }
+        },
+        {
+          "Action": "iam:ListInstanceProfiles",
+          "Effect": "Allow",
+          "Resource": [
+            "arn:aws:iam::*:instance-profile/*"
+          ]
+        },
+        {
+          "Action": "iam:PassRole",
+          "Effect": "Allow",
+          "Resource": [
+            "arn:aws:iam::*:role/handson-*"
+          ],
+          "Condition": {
+            "StringLike": {
+              "iam:PassedToService": [
+                "ec2.amazonaws.com"
+              ]
+            }
+          }
+        }
+        ]
+      Roles: 
+        - !Ref IAMRole
+
+  ## IAM Role作成
+  IAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Path: !Sub "/${PJPrefix}/"
+      RoleName: !Sub "${PJPrefix}-role"
+
+  ### IAM Instance Profile作成
+  InstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: !Sub "/${PJPrefix}/"
+      Roles:
+        - !Ref IAMRole
+
+Outputs:
+  # 各情報を出力
+  # SQS Queue名、SNSTopic名、IAMロール名
+  IAMRole:
+    Value: !Ref IAMRole
+    Description: EC2 Role Name.

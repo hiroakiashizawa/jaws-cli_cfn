@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Build For VPC"
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "Project Name Prefix"
+        Parameters:
+          - PJPrefix
+      - Label:
+          default: "AZ Configration"
+        Parameters:
+          - AZ
+
+Parameters:
+  PJPrefix:
+    Description: Input PJ Prefix.
+    Type: String
+    Default: "handson-cloud9"
+  AZ:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: "ap-northeast-1"
+
+Resources:
+  ## VPC作成
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsSupport: True
+      EnableDnsHostnames: True
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub "${PJPrefix}-vpc"
+  ## サブネット作成
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AZ
+      CidrBlock: "10.0.5.1/25"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${PJPrefix}-public-a"
+      VpcId: !Ref VPC
+
+  ## インターネットGW作成
+  InternetGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${PJPrefix}-IGW"
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGW
+      VpcId: !Ref VPC
+  ## Publicルートテーブル作成
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${PJPrefix}-public-RouteTable"
+      VpcId: !Ref VPC
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      # PublicサブネットのみインターネットGWへのルーティングを許可
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGW
+      RouteTableId: !Ref PublicRouteTable
+
+  ## ルートテーブルを各サブネットに関連付け
+  SubnetRouteTableAssociationPublicPrimary:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+Outputs:
+  # VPCIDを出力
+  VpcId:
+    Value: !Ref VPC
+    Description: VPC ID
