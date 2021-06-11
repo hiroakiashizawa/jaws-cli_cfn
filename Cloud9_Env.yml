@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Build For ¥"
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "Project Name Prefix"
+        Parameters:
+          - PJPrefix
+
+Parameters:
+  PJPrefix:
+    Description: Input PJ Prefix.
+    Type: String
+    Default: "handson-cloud9"
+
+Resources:
+  Cloud9:
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      AutomaticStopTimeMinutes: 30
+      ConnectionType: "SSH"
+      Description: "Cloud9 env"
+      ImageId: "ami-001f026eaf69770b4" ## Amazon Linux2
+      InstanceType: "t2.micro"
+      IamInstanceProfile: ""
+      Name: !Sub "${PJPrefix}-env"
+      SubnetId: ## あとで変数格納する方式を検討する
+      Tags:
+        - Tag
+
+Outputs:

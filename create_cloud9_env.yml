@@ -1,0 +1,266 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Build For VPC"
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "Project Name Prefix"
+        Parameters:
+          - PJPrefix
+      - Label:
+          default: "AZ Configration"
+        Parameters:
+          - AZ
+
+Parameters:
+  PJPrefix:
+    Description: Input PJ Prefix.
+    Type: String
+    Default: "handson-cloud9"
+  AZ:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: "ap-northeast-1a"
+
+Resources:
+  ## VPC作成
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsSupport: True
+      EnableDnsHostnames: True
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub "${PJPrefix}-vpc"
+  ## サブネット作成
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AZ
+      CidrBlock: "10.0.5.1/25"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${PJPrefix}-public-a"
+      VpcId: !Ref VPC
+
+  ## インターネットGW作成
+  InternetGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${PJPrefix}-IGW"
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGW
+      VpcId: !Ref VPC
+  ## Publicルートテーブル作成
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${PJPrefix}-public-RouteTable"
+      VpcId: !Ref VPC
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      # PublicサブネットのみインターネットGWへのルーティングを許可
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGW
+      RouteTableId: !Ref PublicRouteTable
+
+  ## ルートテーブルを各サブネットに関連付け
+  SubnetRouteTableAssociationPublicPrimary:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+  ## IAMユーザ作成
+  IAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      Groups:
+        - !Ref IAMGroup
+      Path: !Sub "/${PJPrefix}/"
+      # PermissionsBoundary: String
+      Tags:
+        - Key: "Name"
+          Value: "tag"
+      UserName: !Sub "${PJPrefix}-user"
+
+  ## IAMグループ作成
+  IAMGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: !Sub "${PJPrefix}-group"
+      Path: !Sub "/${PJPrefix}/"
+      ManagedPolicyArns:
+        - !Ref IAMPolicy
+        - "arn:aws:iam::aws:policy/ReadOnlyAccess"
+        - "arn:aws:iam::aws:policy/AWSCloudShellFullAccess"
+
+  ## IAMポリシー作成
+  IAMPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: !Sub "${PJPrefix}EnvironmentOwner-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        ## Policy Documentの内容は下記
+        Statement: [
+        {
+          "Effect": "Allow",
+          "Action": [
+              "cloud9:ValidateEnvironmentName",
+              "cloud9:GetUserPublicKey",
+              "iam:GetUser",
+              "iam:ListUsers",
+              "ec2:DescribeIamInstanceProfileAssociations",
+              "ec2:DescribeInstances",
+              "ec2:DescribeInstanceStatus",
+              "ec2:DescribeSubnets",
+              "ec2:DescribeVolumes",
+              "ec2:DescribeVpcs"
+          ],
+          "Resource": "*"
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "cloud9:CreateEnvironmentEC2",
+            "cloud9:DeleteEnvironment"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "StringLike": {
+              "cloud9:EnvironmentName": "handson-*",
+              "cloud9:InstanceType": [
+                  "t2.*",
+                  "t3.*",
+                  "t3a.*",
+                  "t4g.*"
+                ]
+            }
+          }
+        },
+        {
+          "Effect": "Allow",
+          "Action": "cloud9:DescribeEnvironmentMemberships",
+          "Resource": "*",
+          "Condition": {
+            "Null": {
+              "cloud9:UserArn": "true",
+              "cloud9:EnvironmentId": "true"
+            }
+          }
+        },
+        {
+          "Effect": "Allow",
+          "Action": "iam:CreateServiceLinkedRole",
+          "Resource": "*",
+          "Condition": {
+            "StringLike": {
+              "iam:AWSServiceName": "cloud9.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "ec2:DisassociateIamInstanceProfile",
+            "ec2:AssociateIamInstanceProfile"
+          ],
+          "Resource": "arn:aws:ec2:*:*:instance/*",
+          "Condition": {
+            "StringLike": {
+              "ec2:ResourceTag/Name": "aws-cloud9-handson-*"
+            }
+          }
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "ec2:RebootInstances",
+            "ec2:StopInstances",
+            "ec2:StartInstances",
+            "ec2:TerminateInstances"
+          ],
+          "Resource": "arn:aws:ec2:*:*:instance/*",
+          "Condition": {
+            "StringLike": {
+              "ec2:ResourceTag/Name": "aws-cloud9-handson-*"
+            }
+          }
+        },
+        {
+          "Action": "iam:ListInstanceProfiles",
+          "Effect": "Allow",
+          "Resource": [
+            "arn:aws:iam::*:instance-profile/*"
+          ]
+        },
+        {
+          "Action": "iam:PassRole",
+          "Effect": "Allow",
+          "Resource": [
+            "arn:aws:iam::*:role/handson-*"
+          ],
+          "Condition": {
+            "StringLike": {
+              "iam:PassedToService": [
+                "ec2.amazonaws.com"
+              ]
+            }
+          }
+        }
+        ]
+      Roles: 
+        - !Ref IAMRole
+
+  ## IAM Role作成
+  IAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Path: !Sub "/${PJPrefix}/"
+      RoleName: !Sub "${PJPrefix}-role"
+
+  ### IAM Instance Profile作成
+  InstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      InstanceProfileName: !Sub "${PJPrefix}-instance-profile"
+      Path: !Sub "/${PJPrefix}/"
+      Roles:
+        - !Ref IAMRole
+
+  Cloud9:
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      AutomaticStopTimeMinutes: 30
+      ConnectionType: "CONNECT_SSH"
+      Description: "Cloud9 env"
+      ImageId: "amazonlinux-2-x86_64" ## Amazon Linux2
+      InstanceType: "t2.micro" 
+      # IamInstanceProfile: !Ref InstanceProfile
+      Name: !Sub "${PJPrefix}-env"
+      SubnetId: !Ref PublicSubnet
+
+Outputs:
+  # VPCIDを出力
+  VpcId:
+    Value: !Ref VPC
+    Description: VPC ID
