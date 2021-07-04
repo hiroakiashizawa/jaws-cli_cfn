@@ -1,0 +1,15 @@
+1.
+
+curl -O https://raw.githubusercontent.com/hiroakiashizawa/jaws-cli_cfn/main/create_cloud9_env.yml
+curl -O https://raw.githubusercontent.com/hiroakiashizawa/jaws-cli_cfn/main/create_cloud9.sh
+
+2. 
+
+aws cloudformation create-stack \
+--stack-name handson-cloud9 \
+--template-body file://create_cloud9_env.yml \
+--capabilities CAPABILITY_NAMED_IAM
+
+3.
+
+. ./create_cloud9.sh

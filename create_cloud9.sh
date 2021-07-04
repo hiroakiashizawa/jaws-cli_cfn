@@ -1,10 +1,14 @@
 #!/bin/bash
 
 ## CloudFormation実行
-aws cloudformation create-stack \
---stack-name handson-cloud9 \
---template-body file://create_cloud9_env.yml \
---capabilities CAPABILITY_NAMED_IAM
+# aws cloudformation create-stack \
+# --stack-name handson-cloud9 \
+# --template-body file://create_cloud9_env.yml \
+# --capabilities CAPABILITY_NAMED_IAM
+
+############################################
+## CFnスタックの実行後にこのシェルを実行すること ##
+############################################
 
 ## Instance Profile関連付け
 ### 変数設定
