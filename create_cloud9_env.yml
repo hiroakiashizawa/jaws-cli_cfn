@@ -249,4 +249,5 @@ Resources:
       InstanceType: "t2.micro" 
       # IamInstanceProfile: !Ref InstanceProfile
       Name: !Sub "${PJPrefix}-env"
+      OwnerArn: !Ref IAMUser
       SubnetId: !Ref PublicSubnet
