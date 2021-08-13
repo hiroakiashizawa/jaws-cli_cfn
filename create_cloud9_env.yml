@@ -43,7 +43,7 @@ Resources:
     Properties:
       Tags:
         - Key: Name
-          Value: !Sub "${PJPrefix}-IGW"
+          Value: !Sub "${PJPrefix}-igw"
   VPCGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
@@ -72,15 +72,6 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet
 
-  ## IAMユーザ用のパスワードを自動生成
-  SecretsManager:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      GenerateSecretString:
-        GenerateStringKey: password
-        PasswordLength: 32
-        SecretStringTemplate: '{}'
-
   ## IAMユーザ作成
   IAMUser:
     Type: AWS::IAM::User
@@ -93,9 +84,6 @@ Resources:
         - Key: "Name"
           Value: "tag"
       UserName: !Sub "${PJPrefix}-user"
-      LoginProfile:
-        Password: !Sub "{{resolve:secretsmanager:${SecretsManager}:SecretString:password::}}"
-
 
   ## IAMグループ作成
   IAMGroup:
@@ -226,7 +214,7 @@ Resources:
       Roles: 
         - !Ref IAMRole
 
-  ## IAM Role作成
+  ## IAMロール作成
   IAMRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -240,7 +228,7 @@ Resources:
             Action:
               - "sts:AssumeRole"
       Path: !Sub "/${PJPrefix}/"
-      RoleName: !Sub "${PJPrefix}-role"
+      RoleName: !Sub "${PJPrefix}-environment-role"
 
   ### IAM Instance Profile作成
   InstanceProfile:
@@ -262,14 +250,3 @@ Resources:
       # IamInstanceProfile: !Ref InstanceProfile
       Name: !Sub "${PJPrefix}-env"
       SubnetId: !Ref PublicSubnet
-
-Outputs:
-  # IAMユーザのパスワードを出力
-  GetSecretValueByCLI:
-    Value: !Sub |+
-      aws secretsmanager get-secret-value
-        --secret-id ${SecretsManager}
-        --region ${AWS::Region}
-        --query SecretString
-  IAMUserName:
-    Value: !Ref IAMUser
