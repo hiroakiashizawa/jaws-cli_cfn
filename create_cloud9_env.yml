@@ -229,6 +229,9 @@ Resources:
             - iam:detachRolePolicy
           Resource:
             - !GetAtt IAMRole.Arn
+      Roles: 
+        - !Ref IAMRole
+            
 
   ## IAMロール作成
   IAMRole:
