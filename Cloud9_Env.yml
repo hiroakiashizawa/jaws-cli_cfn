@@ -19,7 +19,7 @@ Resources:
     Type: AWS::Cloud9::EnvironmentEC2
     Properties:
       AutomaticStopTimeMinutes: 30
-      ConnectionType: "SSH"
+      ConnectionType: "CONNECT_SSH"
       Description: "Cloud9 env"
       ImageId: "ami-001f026eaf69770b4" ## Amazon Linux2
       InstanceType: "t2.micro"

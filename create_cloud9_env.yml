@@ -7,19 +7,12 @@ Metadata:
           default: "Project Name Prefix"
         Parameters:
           - PJPrefix
-      - Label:
-          default: "AZ Configration"
-        Parameters:
-          - AZ
 
 Parameters:
   PJPrefix:
     Description: Input PJ Prefix.
     Type: String
     Default: "handson-cloud9"
-  AZ:
-    Type: AWS::EC2::AvailabilityZone::Name
-    Default: "ap-northeast-1a"
 
 Resources:
   ## VPC作成
@@ -37,7 +30,6 @@ Resources:
   PublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Ref AZ
       CidrBlock: "10.0.5.1/25"
       MapPublicIpOnLaunch: true
       Tags:
@@ -51,7 +43,7 @@ Resources:
     Properties:
       Tags:
         - Key: Name
-          Value: !Sub "${PJPrefix}-IGW"
+          Value: !Sub "${PJPrefix}-igw"
   VPCGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
@@ -101,6 +93,7 @@ Resources:
       Path: !Sub "/${PJPrefix}/"
       ManagedPolicyArns:
         - !Ref IAMPolicy
+        - !Ref IAMPolicyForAttachRole
         - "arn:aws:iam::aws:policy/ReadOnlyAccess"
         - "arn:aws:iam::aws:policy/AWSCloudShellFullAccess"
 
@@ -222,7 +215,25 @@ Resources:
       Roles: 
         - !Ref IAMRole
 
-  ## IAM Role作成
+  IAMPolicyForAttachRole:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: !Sub "${PJPrefix}IAMAllowRolePolicy-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        ## Policy Documentの内容は下記
+        "Statement": {
+          "Effect": "Allow",
+          "Action": [
+            "iam:AttachRolePolicy",
+            "iam:detachRolePolicy"
+          ],
+          "Resource": [
+            "${IAM_ROLE_ARN}"
+          ]
+          }
+
+  ## IAMロール作成
   IAMRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -236,7 +247,7 @@ Resources:
             Action:
               - "sts:AssumeRole"
       Path: !Sub "/${PJPrefix}/"
-      RoleName: !Sub "${PJPrefix}-role"
+      RoleName: !Sub "${PJPrefix}-environment-role"
 
   ### IAM Instance Profile作成
   InstanceProfile:
@@ -257,11 +268,4 @@ Resources:
       InstanceType: "t2.micro" 
       # IamInstanceProfile: !Ref InstanceProfile
       Name: !Sub "${PJPrefix}-env"
-      OwnerArn: !Ref IAMUser
-      SubnetId: !Ref PublicSubnet
-
-Outputs:
-  # VPCIDを出力
-  VpcId:
-    Value: !Ref VPC
-    Description: VPC ID
+      OwnerArn: !GetAtt IAMUser.Arn
