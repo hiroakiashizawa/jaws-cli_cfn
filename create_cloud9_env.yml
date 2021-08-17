@@ -93,6 +93,7 @@ Resources:
       Path: !Sub "/${PJPrefix}/"
       ManagedPolicyArns:
         - !Ref IAMPolicy
+        - !Ref IAMPolicyForAttachRole
         - "arn:aws:iam::aws:policy/ReadOnlyAccess"
         - "arn:aws:iam::aws:policy/AWSCloudShellFullAccess"
 
@@ -213,6 +214,24 @@ Resources:
         ]
       Roles: 
         - !Ref IAMRole
+
+  IAMPolicyForAttachRole:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: !Sub "${PJPrefix}IAMAllowRolePolicy-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        ## Policy Documentの内容は下記
+        "Statement": {
+          "Effect": "Allow",
+          "Action": [
+            "iam:AttachRolePolicy",
+            "iam:detachRolePolicy"
+          ],
+          "Resource": [
+            "${IAM_ROLE_ARN}"
+          ]
+          }
 
   ## IAMロール作成
   IAMRole:
