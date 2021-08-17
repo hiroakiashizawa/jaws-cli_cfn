@@ -84,9 +84,9 @@ Resources:
         - Key: "Name"
           Value: "tag"
       UserName: !Sub "${PJPrefix}-user"
-    LoginProfile:
-      Password: "#userPass123"
-      PasswordResetRequired: True
+      LoginProfile:
+        Password: "#userPass123"
+        PasswordResetRequired: True
 
   ## IAMグループ作成
   IAMGroup:
