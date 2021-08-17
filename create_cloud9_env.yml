@@ -229,7 +229,7 @@ Resources:
             "iam:detachRolePolicy"
           ],
           "Resource": [
-            "${IAM_ROLE_ARN}"
+            "!GetAtt IAMRole.Arn"
           ]
           }
 
