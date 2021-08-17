@@ -269,4 +269,3 @@ Resources:
       # IamInstanceProfile: !Ref InstanceProfile
       Name: !Sub "${PJPrefix}-env"
       OwnerArn: !GetAtt IAMUser.Arn
-      SubnetId: !Ref PublicSubnet
